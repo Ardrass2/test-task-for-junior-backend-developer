@@ -12,9 +12,11 @@ import (
 
 	infrastructurepostgres "example.com/taskservice/internal/infrastructure/postgres"
 	postgresrepo "example.com/taskservice/internal/repository/postgres"
+	"example.com/taskservice/internal/scheduler"
 	transporthttp "example.com/taskservice/internal/transport/http"
 	swaggerdocs "example.com/taskservice/internal/transport/http/docs"
 	httphandlers "example.com/taskservice/internal/transport/http/handlers"
+	periodictaskusecase "example.com/taskservice/internal/usecase/periodictask"
 	"example.com/taskservice/internal/usecase/task"
 )
 
@@ -36,10 +38,18 @@ func main() {
 	defer pool.Close()
 
 	taskRepo := postgresrepo.New(pool)
+	periodicTaskRepo := postgresrepo.NewPeriodicTaskRepository(pool)
+
 	taskUsecase := task.NewService(taskRepo)
+	periodicTaskUsecase := periodictaskusecase.NewService(periodicTaskRepo, taskRepo)
+
 	taskHandler := httphandlers.NewTaskHandler(taskUsecase)
+	periodicTaskHandler := httphandlers.NewPeriodicTaskHandler(periodicTaskUsecase)
 	docsHandler := swaggerdocs.NewHandler()
-	router := transporthttp.NewRouter(taskHandler, docsHandler)
+	router := transporthttp.NewRouter(taskHandler, periodicTaskHandler, docsHandler)
+
+	taskScheduler := scheduler.New(periodicTaskUsecase, logger, 1*time.Minute)
+	go taskScheduler.Run(ctx)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
