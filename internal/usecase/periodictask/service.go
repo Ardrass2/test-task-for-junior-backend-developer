@@ -28,6 +28,10 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*periodictaskd
 	if err := validateCreateInput(input); err != nil {
 		return nil, err
 	}
+	startDate, endDate, err := normalizeAndValidateDateRange(input.StartDate, input.EndDate)
+	if err != nil {
+		return nil, err
+	}
 
 	now := s.now()
 	pt := &periodictaskdomain.PeriodicTask{
@@ -35,8 +39,8 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*periodictaskd
 		Description:      strings.TrimSpace(input.Description),
 		RecurrenceType:   input.RecurrenceType,
 		RecurrenceParams: input.RecurrenceParams,
-		StartDate:        input.StartDate,
-		EndDate:          input.EndDate,
+		StartDate:        startDate,
+		EndDate:          endDate,
 		IsActive:         true,
 		CreatedAt:        now,
 		UpdatedAt:        now,
@@ -59,6 +63,10 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateInput) (*per
 	if err := validateUpdateInput(input); err != nil {
 		return nil, err
 	}
+	startDate, endDate, err := normalizeAndValidateDateRange(input.StartDate, input.EndDate)
+	if err != nil {
+		return nil, err
+	}
 
 	pt := &periodictaskdomain.PeriodicTask{
 		ID:               id,
@@ -66,8 +74,8 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateInput) (*per
 		Description:      strings.TrimSpace(input.Description),
 		RecurrenceType:   input.RecurrenceType,
 		RecurrenceParams: input.RecurrenceParams,
-		StartDate:        input.StartDate,
-		EndDate:          input.EndDate,
+		StartDate:        startDate,
+		EndDate:          endDate,
 		IsActive:         input.IsActive,
 		UpdatedAt:        s.now(),
 	}
@@ -173,4 +181,26 @@ func validateRecurrenceParams(rt periodictaskdomain.RecurrenceType, params perio
 		}
 	}
 	return nil
+}
+
+func normalizeAndValidateDateRange(startDate time.Time, endDate *time.Time) (time.Time, *time.Time, error) {
+	if startDate.IsZero() {
+		return time.Time{}, nil, fmt.Errorf("%w: start_date is required", ErrInvalidInput)
+	}
+
+	normalizedStart := toUTCDate(startDate)
+	var normalizedEnd *time.Time
+	if endDate != nil {
+		value := toUTCDate(*endDate)
+		if value.Before(normalizedStart) {
+			return time.Time{}, nil, fmt.Errorf("%w: end_date must be greater than or equal to start_date", ErrInvalidInput)
+		}
+		normalizedEnd = &value
+	}
+
+	return normalizedStart, normalizedEnd, nil
+}
+
+func toUTCDate(value time.Time) time.Time {
+	return time.Date(value.UTC().Year(), value.UTC().Month(), value.UTC().Day(), 0, 0, 0, 0, time.UTC)
 }
