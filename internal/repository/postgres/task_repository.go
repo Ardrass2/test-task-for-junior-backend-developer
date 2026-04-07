@@ -78,6 +78,30 @@ func (r *Repository) Update(ctx context.Context, task *taskdomain.Task) (*taskdo
 	return updated, nil
 }
 
+func (r *Repository) CreateFromSchedule(ctx context.Context, task *taskdomain.Task) (*taskdomain.Task, error) {
+	const query = `
+		INSERT INTO tasks (title, description, status, periodic_task_id, scheduled_date, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (periodic_task_id, scheduled_date) WHERE periodic_task_id IS NOT NULL DO NOTHING
+		RETURNING id, title, description, status, periodic_task_id, scheduled_date, created_at, updated_at
+	`
+
+	row := r.pool.QueryRow(ctx, query,
+		task.Title, task.Description, task.Status,
+		task.PeriodicTaskID, task.ScheduledDate,
+		task.CreatedAt, task.UpdatedAt,
+	)
+
+	created, err := scanTask(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return created, nil
+}
+
 func (r *Repository) Delete(ctx context.Context, id int64) error {
 	const query = `DELETE FROM tasks WHERE id = $1`
 
