@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Task Service API",
-    "version": "1.0.0",
-    "description": "CRUD API for tasks built with clean architecture."
+    "version": "1.1.0",
+    "description": "CRUD API for tasks and periodic tasks built with clean architecture."
   },
   "servers": [
     {
@@ -14,6 +14,10 @@
     {
       "name": "Tasks",
       "description": "Operations with tasks"
+    },
+    {
+      "name": "Periodic Tasks",
+      "description": "Operations with periodic (recurring) tasks"
     }
   ],
   "paths": {
@@ -131,6 +135,121 @@
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
+    },
+    "/api/v1/periodic-tasks": {
+      "get": {
+        "tags": ["Periodic Tasks"],
+        "summary": "List periodic tasks",
+        "responses": {
+          "200": {
+            "description": "Periodic task list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PeriodicTask" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Periodic Tasks"],
+        "summary": "Create periodic task",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreatePeriodicTaskRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created periodic task",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PeriodicTask" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/periodic-tasks/{id}": {
+      "get": {
+        "tags": ["Periodic Tasks"],
+        "summary": "Get periodic task by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64", "minimum": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Periodic task",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PeriodicTask" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Periodic Tasks"],
+        "summary": "Update periodic task",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64", "minimum": 1 }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdatePeriodicTaskRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated periodic task",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PeriodicTask" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Periodic Tasks"],
+        "summary": "Delete periodic task",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64", "minimum": 1 }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
     }
   },
   "components": {
@@ -157,38 +276,18 @@
         "type": "object",
         "required": ["title"],
         "properties": {
-          "title": {
-            "type": "string",
-            "example": "Prepare release"
-          },
-          "description": {
-            "type": "string",
-            "example": "Collect release notes and check migrations"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["new", "in_progress", "done"],
-            "example": "new"
-          }
+          "title": { "type": "string", "example": "Prepare release" },
+          "description": { "type": "string", "example": "Collect release notes and check migrations" },
+          "status": { "type": "string", "enum": ["new", "in_progress", "done"], "example": "new" }
         }
       },
       "UpdateTaskRequest": {
         "type": "object",
         "required": ["title", "status"],
         "properties": {
-          "title": {
-            "type": "string",
-            "example": "Prepare release"
-          },
-          "description": {
-            "type": "string",
-            "example": "Collect release notes and check migrations"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["new", "in_progress", "done"],
-            "example": "in_progress"
-          }
+          "title": { "type": "string", "example": "Prepare release" },
+          "description": { "type": "string", "example": "Collect release notes and check migrations" },
+          "status": { "type": "string", "enum": ["new", "in_progress", "done"], "example": "in_progress" }
         }
       },
       "Task": {
@@ -196,25 +295,66 @@
         "properties": {
           "id": { "type": "integer", "format": "int64", "example": 1 },
           "title": { "type": "string", "example": "Prepare release" },
-          "description": {
-            "type": "string",
-            "example": "Collect release notes and check migrations"
+          "description": { "type": "string", "example": "Collect release notes and check migrations" },
+          "status": { "type": "string", "enum": ["new", "in_progress", "done"], "example": "new" },
+          "periodic_task_id": { "type": "integer", "format": "int64", "nullable": true, "example": null },
+          "scheduled_date": { "type": "string", "format": "date", "nullable": true, "example": null },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-03-24T00:00:00Z" },
+          "updated_at": { "type": "string", "format": "date-time", "example": "2026-03-24T00:00:00Z" }
+        }
+      },
+      "RecurrenceParams": {
+        "type": "object",
+        "description": "Parameters depend on recurrence_type: daily requires interval, monthly requires day, specific_dates requires dates, even_odd requires parity.",
+        "properties": {
+          "interval": { "type": "integer", "minimum": 1, "example": 2 },
+          "day": { "type": "integer", "minimum": 1, "maximum": 30, "example": 15 },
+          "dates": {
+            "type": "array",
+            "items": { "type": "string", "format": "date" },
+            "example": ["2026-04-10", "2026-05-01"]
           },
-          "status": {
-            "type": "string",
-            "enum": ["new", "in_progress", "done"],
-            "example": "new"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2026-03-24T00:00:00Z"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2026-03-24T00:00:00Z"
-          }
+          "parity": { "type": "string", "enum": ["even", "odd"], "example": "even" }
+        }
+      },
+      "CreatePeriodicTaskRequest": {
+        "type": "object",
+        "required": ["title", "recurrence_type", "recurrence_params", "start_date"],
+        "properties": {
+          "title": { "type": "string", "example": "Daily patient calls" },
+          "description": { "type": "string", "example": "Call all patients from the list" },
+          "recurrence_type": { "type": "string", "enum": ["daily", "monthly", "specific_dates", "even_odd"], "example": "daily" },
+          "recurrence_params": { "$ref": "#/components/schemas/RecurrenceParams" },
+          "start_date": { "type": "string", "format": "date", "example": "2026-04-07" },
+          "end_date": { "type": "string", "format": "date", "nullable": true, "example": "2026-12-31" }
+        }
+      },
+      "UpdatePeriodicTaskRequest": {
+        "type": "object",
+        "required": ["title", "recurrence_type", "recurrence_params", "start_date", "is_active"],
+        "properties": {
+          "title": { "type": "string", "example": "Daily patient calls" },
+          "description": { "type": "string", "example": "Call all patients from the list" },
+          "recurrence_type": { "type": "string", "enum": ["daily", "monthly", "specific_dates", "even_odd"], "example": "daily" },
+          "recurrence_params": { "$ref": "#/components/schemas/RecurrenceParams" },
+          "start_date": { "type": "string", "format": "date", "example": "2026-04-07" },
+          "end_date": { "type": "string", "format": "date", "nullable": true, "example": "2026-12-31" },
+          "is_active": { "type": "boolean", "example": true }
+        }
+      },
+      "PeriodicTask": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64", "example": 1 },
+          "title": { "type": "string", "example": "Daily patient calls" },
+          "description": { "type": "string", "example": "Call all patients from the list" },
+          "recurrence_type": { "type": "string", "enum": ["daily", "monthly", "specific_dates", "even_odd"], "example": "daily" },
+          "recurrence_params": { "$ref": "#/components/schemas/RecurrenceParams" },
+          "start_date": { "type": "string", "format": "date", "example": "2026-04-07" },
+          "end_date": { "type": "string", "format": "date", "nullable": true, "example": "2026-12-31" },
+          "is_active": { "type": "boolean", "example": true },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-04-07T10:00:00Z" },
+          "updated_at": { "type": "string", "format": "date-time", "example": "2026-04-07T10:00:00Z" }
         }
       },
       "Error": {
